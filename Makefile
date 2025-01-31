@@ -42,7 +42,7 @@ OBJS=${COMPILER}/main.o	\
 	  ${COMPILER}/PollQ.o	\
 	  ${COMPILER}/integer.o	\
 	  ${COMPILER}/semtest.o \
-	  ${COMPILER}/osram96x16.o
+	  ${COMPILER}/osram96x16.o \
 
 INIT_OBJS= ${COMPILER}/startup.o
 
