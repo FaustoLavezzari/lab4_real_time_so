@@ -46,11 +46,17 @@
 #define configTICK_RATE_HZ			( ( TickType_t ) 1000 )
 #define configMINIMAL_STACK_SIZE	( ( unsigned short ) 70 )
 #define configTOTAL_HEAP_SIZE		( ( size_t ) ( 7000 ) )
-#define configMAX_TASK_NAME_LEN		( 10 )
-#define configUSE_TRACE_FACILITY	0
+#define configMAX_TASK_NAME_LEN		( 14 )
+#define configUSE_TRACE_FACILITY	1
 #define configUSE_16_BIT_TICKS		0
 #define configIDLE_SHOULD_YIELD		0
 #define configUSE_CO_ROUTINES 		0
+
+/* Runtime stats config */
+#define configGENERATE_RUN_TIME_STATS   1
+#define portGET_RUN_TIME_COUNTER_VALUE()            (xTaskGetTickCount())
+#define portCONFIGURE_TIMER_FOR_RUN_TIME_STATS()    ( 0UL )
+
 
 #define configMAX_PRIORITIES		( 5 )
 #define configMAX_CO_ROUTINE_PRIORITIES ( 2 )
@@ -58,6 +64,7 @@
 /* Set the following definitions to 1 to include the API function, or zero
 to exclude the API function. */
 
+#define INCLUDE_uxTaskGetStackHighWaterMark    1
 #define INCLUDE_vTaskPrioritySet		0
 #define INCLUDE_uxTaskPriorityGet		0
 #define INCLUDE_vTaskDelete				0
