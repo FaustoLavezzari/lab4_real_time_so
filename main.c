@@ -58,9 +58,10 @@ int main(void)
 {
     prvSetupHardware();
 
-    xTaskCreate(vRandomGenTask,     "RandGen",       configMINIMAL_STACK_SIZE, NULL, TASK_PRIORITY_GEN,    NULL);
-    xTaskCreate(vLowPassFilterTask, "LowPassFilter", configMINIMAL_STACK_SIZE, NULL, TASK_PRIORITY_FILTER, NULL);
-    xTaskCreate(vGraphTask,         "Graph",         configMINIMAL_STACK_SIZE, NULL, TASK_PRIORITY_GRAPH,  NULL);
+    xTaskCreate(vRandomGenTask,     "RandGen",       configMINIMAL_STACK_SIZE, NULL, TASK_PRIORITY_GEN,     NULL);
+    xTaskCreate(vLowPassFilterTask, "LowPassFilter", configMINIMAL_STACK_SIZE, NULL, TASK_PRIORITY_FILTER,  NULL);
+    xTaskCreate(vUartReceiveTask,   "UART_RCV",      configMINIMAL_STACK_SIZE, NULL, TASK_PRIORITY_UART,    NULL);
+    xTaskCreate(vGraphTask,         "Graph",         configMINIMAL_STACK_SIZE, NULL, TASK_PRIORITY_GRAPH,   NULL);
     xTaskCreate(vTop,               "Top",           configMINIMAL_STACK_SIZE, NULL, TASK_PRIORITY_TOP - 1, NULL);
 
     xSensorValueQueue   = xQueueCreate(10, sizeof(int));
@@ -70,8 +71,6 @@ int main(void)
         OSRAMStringDraw("Queue Fail", 0, 0);
         while (1);
     }
-
-    xTaskCreate(vUartReceiveTask, "UART_RCV", configMINIMAL_STACK_SIZE, NULL, TASK_PRIORITY_UART, NULL);
 
     vTaskStartScheduler();
     return 0;
@@ -157,36 +156,35 @@ static void vRandomGenTask(void *pvParameters)
 static void vLowPassFilterTask(void *pvParameters)
 {
     static int buffer[MAX_FILTER_WINDOW_SIZE] = {0};
-    static int oldWindowSize = 0;
     static int index = 0;
-    static int sum = 0;
     static int sampleCount = 0;
     int value, filteredValue;
-
+    
     for (;;)
     {
         if (xQueueReceive(xSensorValueQueue, &value, portMAX_DELAY) == pdPASS)
         {
-            if (g_filterWindowSize != oldWindowSize)
-            {
-                oldWindowSize = g_filterWindowSize;
-                sum = 0;
-                index = 0;
-                sampleCount = 0;
-                for (int i = 0; i < g_filterWindowSize; i++)
-                {
-                    buffer[i] = 0;
-                }
-            }
-            sum -= buffer[index];
             buffer[index] = value;
-            sum += value;
-            index = (index + 1) % g_filterWindowSize;
+
             if (sampleCount < g_filterWindowSize)
             {
                 sampleCount++;
             }
+            else
+            {
+                sampleCount = g_filterWindowSize;
+            }
+            
+            int sum = 0;
+            for (int i = 0; i < sampleCount; i++)
+            {
+                int pos = (index + MAX_FILTER_WINDOW_SIZE - i) % MAX_FILTER_WINDOW_SIZE;
+                sum += buffer[pos];
+            }
             filteredValue = sum / sampleCount;
+
+            index = (index + 1) % MAX_FILTER_WINDOW_SIZE;
+            
             xQueueSend(xFilteredValueQueue, &filteredValue, portMAX_DELAY);
         }
     }
@@ -212,7 +210,7 @@ static void vGraphTask(void *pvParameters)
             OSRAMImageDraw(yAxis, 20, 0, 1, 2);
 
             uint8_t graphData[2] = {0x00, 0x80};
-            uint16_t heigth = 1 + (value - TEMP_MIN) * 15 / (TEMP_MAX - TEMP_MIN);
+            uint16_t heigth = 1 + (value - TEMP_MIN) * 14 / (TEMP_MAX - TEMP_MIN);
             if (heigth > 7)
             {
                 graphData[0] |= 0x01 << (7 - (heigth - 7));
@@ -238,7 +236,7 @@ static void vGraphTask(void *pvParameters)
  */
 static void vUartReceiveTask(void *pvParameters)
 {
-    static char inputBuf[5] = {0};
+    static char inputBuf[4] = {0};
     int idx = 0;
     for (;;)
     {
@@ -247,7 +245,7 @@ static void vUartReceiveTask(void *pvParameters)
             char c = (char)(HWREG(UART0_BASE + UART_O_DR) & 0xFF);
             if ((c >= '0') && (c <= '9'))
             {
-                if (idx < 4)
+                if (idx < 3)
                 {
                     inputBuf[idx++] = c;
                 }
